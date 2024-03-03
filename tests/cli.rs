@@ -44,7 +44,7 @@ fn dies_bad_file() -> TestResult {
 #[test]
 fn dies_bad_seed() -> TestResult {
     let bad = random_string();
-    let expected = format!("\"{}\" not a valid integer", &bad);
+    let expected = format!("invalid value '{}' for '--seed <SEED>'", &bad);
     Command::cargo_bin(PRG)?
         .args([LITERATURE, "--seed", &bad])
         .assert()
