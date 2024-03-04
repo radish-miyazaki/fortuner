@@ -51,8 +51,8 @@ fn find_files(paths: &[String]) -> MyResult<Vec<PathBuf>> {
 }
 
 pub fn run(cli: Cli) -> MyResult<()> {
-    print!("{:#?}", cli);
-
+    let files = find_files(&cli.sources)?;
+    println!("{:#?}", files);
     Ok(())
 }
 
