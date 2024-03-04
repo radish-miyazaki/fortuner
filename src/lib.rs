@@ -58,7 +58,6 @@ pub fn run(cli: Cli) -> MyResult<()> {
 
 #[cfg(test)]
 mod tests {
-
     use super::find_files;
 
     #[test]
