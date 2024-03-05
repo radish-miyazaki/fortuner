@@ -1,6 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use clap::Parser;
+use rand::{rngs::StdRng, SeedableRng, seq::SliceRandom, thread_rng};
 use regex::{Regex, RegexBuilder};
 use walkdir::WalkDir;
 
@@ -110,10 +111,19 @@ fn read_fortunes(paths: &[PathBuf]) -> MyResult<Vec<Fortune>> {
     Ok(fortunes)
 }
 
+fn pick_fortune(fortunes: &[Fortune], seed: Option<u64>) -> Option<String> {
+    let fortune = match seed {
+        Some(seed) => fortunes.choose(&mut StdRng::seed_from_u64(seed)),
+        None => fortunes.choose(&mut thread_rng())
+    }?;
+
+    Some(fortune.text.clone())
+}
+
 pub fn run(cli: Cli) -> MyResult<()> {
     let files = find_files(&cli.sources)?;
     let fortunes = read_fortunes(&files)?;
-    println!("{:#?}", fortunes);
+    println!("{:#?}", pick_fortune(&fortunes, cli.seed));
     Ok(())
 }
 
