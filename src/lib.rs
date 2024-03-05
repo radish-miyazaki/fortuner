@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use clap::Parser;
-use rand::{rngs::StdRng, SeedableRng, seq::SliceRandom, thread_rng};
+use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
 use regex::{Regex, RegexBuilder};
 use walkdir::WalkDir;
 
@@ -114,7 +114,7 @@ fn read_fortunes(paths: &[PathBuf]) -> MyResult<Vec<Fortune>> {
 fn pick_fortune(fortunes: &[Fortune], seed: Option<u64>) -> Option<String> {
     let fortune = match seed {
         Some(seed) => fortunes.choose(&mut StdRng::seed_from_u64(seed)),
-        None => fortunes.choose(&mut thread_rng())
+        None => fortunes.choose(&mut thread_rng()),
     }?;
 
     Some(fortune.text.clone())
@@ -131,7 +131,7 @@ pub fn run(cli: Cli) -> MyResult<()> {
 mod tests {
     use std::path::PathBuf;
 
-    use super::{find_files, Fortune, pick_fortune, read_fortunes};
+    use super::{find_files, pick_fortune, read_fortunes, Fortune};
 
     #[test]
     fn test_find_files() {
@@ -212,7 +212,8 @@ mod tests {
             Fortune {
                 source: "fortunes".to_string(),
                 text: "You cannot achieve the impossible without \
-                attempting the absurd.".to_string(),
+                attempting the absurd."
+                    .to_string(),
             },
             Fortune {
                 source: "fortunes".to_string(),
@@ -221,7 +222,7 @@ mod tests {
             Fortune {
                 source: "fortunes".to_string(),
                 text: "Neckties strangle clear thinking.".to_string(),
-            }
+            },
         ];
 
         assert_eq!(
