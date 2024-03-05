@@ -81,6 +81,35 @@ fn find_files(paths: &[String]) -> MyResult<Vec<PathBuf>> {
     Ok(files)
 }
 
+#[derive(Debug)]
+pub struct Fortune {
+    source: String,
+    text: String,
+}
+
+fn read_fortunes(paths: &[PathBuf]) -> MyResult<Vec<Fortune>> {
+    let mut fortunes: Vec<Fortune> = vec![];
+    for path in paths {
+        let source = path.display().to_string();
+
+        match fs::read_to_string(path) {
+            Err(e) => Err(format!("{}: {}", source, e))?,
+            Ok(s) => s
+                .split('%')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .for_each(|s| {
+                    fortunes.push(Fortune {
+                        source: source.clone(),
+                        text: s.to_string(),
+                    });
+                }),
+        }
+    }
+
+    Ok(fortunes)
+}
+
 pub fn run(cli: Cli) -> MyResult<()> {
     let files = find_files(&cli.sources)?;
     let fortunes = read_fortunes(&files)?;
