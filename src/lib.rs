@@ -83,13 +83,16 @@ fn find_files(paths: &[String]) -> MyResult<Vec<PathBuf>> {
 
 pub fn run(cli: Cli) -> MyResult<()> {
     let files = find_files(&cli.sources)?;
-    println!("{:#?}", files);
+    let fortunes = read_fortunes(&files)?;
+    println!("{:#?}", fortunes);
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::find_files;
+    use std::path::PathBuf;
+
+    use super::{find_files, read_fortunes};
 
     #[test]
     fn test_find_files() {
@@ -133,5 +136,34 @@ mod tests {
         if let Some(filename) = files.last().unwrap().file_name() {
             assert_eq!(filename.to_string_lossy(), "jokes".to_string());
         }
+    }
+
+    #[test]
+    fn test_read_fortunes() {
+        // 入力ファイルが1つだけの場合
+        let res = read_fortunes(&[PathBuf::from("./tests/inputs/jokes")]);
+        assert!(res.is_ok());
+
+        if let Ok(fortunes) = res {
+            assert_eq!(fortunes.len(), 6);
+            assert_eq!(
+                fortunes.first().unwrap().text,
+                "Q. What do you call a head of lettuce in a shirt and tie?\n\
+                A. Collared greens."
+            );
+            assert_eq!(
+                fortunes.last().unwrap().text,
+                "Q: What do you call a deer wearing an eye patch?\n\
+                A: A bad idea (bad-eye deer)."
+            );
+        }
+
+        // 入力ファイルが複数の場合
+        let res = read_fortunes(&[
+            PathBuf::from("./tests/inputs/jokes"),
+            PathBuf::from("./tests/inputs/quotes"),
+        ]);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap().len(), 11);
     }
 }
