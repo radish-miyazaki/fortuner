@@ -91,13 +91,13 @@ pub struct Fortune {
 fn read_fortunes(paths: &[PathBuf]) -> MyResult<Vec<Fortune>> {
     let mut fortunes: Vec<Fortune> = vec![];
     for path in paths {
-        let source = path.display().to_string();
+        let source = path.file_name().unwrap().to_string_lossy().to_string();
 
         match fs::read_to_string(path) {
             Err(e) => Err(format!("{}: {}", source, e))?,
             Ok(s) => s
-                .split('%')
-                .map(|s| s.trim())
+                .split("%\n")
+                .map(|s| s.trim_end())
                 .filter(|s| !s.is_empty())
                 .for_each(|s| {
                     fortunes.push(Fortune {
@@ -123,7 +123,32 @@ fn pick_fortune(fortunes: &[Fortune], seed: Option<u64>) -> Option<String> {
 pub fn run(cli: Cli) -> MyResult<()> {
     let files = find_files(&cli.sources)?;
     let fortunes = read_fortunes(&files)?;
-    println!("{:#?}", pick_fortune(&fortunes, cli.seed));
+
+    if fortunes.is_empty() {
+        println!("No fortunes found");
+        return Ok(());
+    }
+
+    if let Some(pattern) = cli.pattern {
+        let mut pre_source = String::new();
+
+        for fortune in fortunes {
+            if pattern.is_match(&fortune.text) {
+                if pre_source != fortune.source {
+                    eprintln!("({})\n%", fortune.source);
+                }
+
+                println!("{}\n%", fortune.text);
+                pre_source = fortune.source.clone();
+            }
+        }
+    } else {
+        let fortune = pick_fortune(&fortunes, cli.seed);
+        if let Some(fortune) = fortune {
+            println!("{}", fortune);
+        }
+    }
+
     Ok(())
 }
 
