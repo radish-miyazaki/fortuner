@@ -1,7 +1,8 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use clap::Parser;
 use regex::{Regex, RegexBuilder};
+use walkdir::WalkDir;
 
 type MyResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -47,7 +48,37 @@ pub fn get_cli() -> MyResult<Cli> {
 }
 
 fn find_files(paths: &[String]) -> MyResult<Vec<PathBuf>> {
-    unimplemented!()
+    let mut files = vec![];
+
+    for path in paths {
+        match fs::metadata(path) {
+            Err(e) => Err(format!("{}: {}", path, e))?,
+            Ok(_) => {
+                let file = PathBuf::from(path);
+                if file.is_file() {
+                    if file.extension().map_or(true, |e| e != "dat") {
+                        files.push(file);
+                    }
+
+                    continue;
+                }
+
+                for entry in WalkDir::new(file)
+                    .into_iter()
+                    .flatten()
+                    .filter(|e| e.file_type().is_file())
+                {
+                    if entry.path().extension().map_or(true, |e| e != "dat") {
+                        files.push(entry.path().to_path_buf());
+                    }
+                }
+            }
+        }
+    }
+
+    files.sort();
+    files.dedup();
+    Ok(files)
 }
 
 pub fn run(cli: Cli) -> MyResult<()> {
