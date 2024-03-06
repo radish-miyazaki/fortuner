@@ -1,4 +1,9 @@
-use std::{fs, path::PathBuf};
+use std::{
+    ffi::OsStr,
+    fs::{self, File},
+    io::{BufRead, BufReader},
+    path::PathBuf,
+};
 
 use clap::Parser;
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
@@ -55,24 +60,13 @@ fn find_files(paths: &[String]) -> MyResult<Vec<PathBuf>> {
         match fs::metadata(path) {
             Err(e) => Err(format!("{}: {}", path, e))?,
             Ok(_) => {
-                let file = PathBuf::from(path);
-                if file.is_file() {
-                    if file.extension().map_or(true, |e| e != "dat") {
-                        files.push(file);
-                    }
-
-                    continue;
-                }
-
-                for entry in WalkDir::new(file)
+                WalkDir::new(path)
                     .into_iter()
-                    .flatten()
-                    .filter(|e| e.file_type().is_file())
-                {
-                    if entry.path().extension().map_or(true, |e| e != "dat") {
-                        files.push(entry.path().to_path_buf());
-                    }
-                }
+                    .filter_map(Result::ok)
+                    .filter(|e| {
+                        e.file_type().is_file() && e.path().extension() != Some(OsStr::new("dat"))
+                    })
+                    .for_each(|e| files.push(e.path().to_path_buf()));
             }
         }
     }
@@ -90,21 +84,25 @@ pub struct Fortune {
 
 fn read_fortunes(paths: &[PathBuf]) -> MyResult<Vec<Fortune>> {
     let mut fortunes: Vec<Fortune> = vec![];
+    let mut buffer = vec![];
+
     for path in paths {
         let source = path.file_name().unwrap().to_string_lossy().to_string();
+        let file = File::open(path).map_err(|e| format!("{}: {}", source, e))?;
 
-        match fs::read_to_string(path) {
-            Err(e) => Err(format!("{}: {}", source, e))?,
-            Ok(s) => s
-                .split("%\n")
-                .map(|s| s.trim_end())
-                .filter(|s| !s.is_empty())
-                .for_each(|s| {
-                    fortunes.push(Fortune {
-                        source: source.clone(),
-                        text: s.to_string(),
-                    });
-                }),
+        for line in BufReader::new(file).lines().map_while(Result::ok) {
+            if line != "%" {
+                buffer.push(line.to_string());
+                continue;
+            }
+
+            if !buffer.is_empty() {
+                fortunes.push(Fortune {
+                    source: source.clone(),
+                    text: buffer.join("\n"),
+                });
+                buffer.clear();
+            }
         }
     }
 
@@ -124,29 +122,25 @@ pub fn run(cli: Cli) -> MyResult<()> {
     let files = find_files(&cli.sources)?;
     let fortunes = read_fortunes(&files)?;
 
-    if fortunes.is_empty() {
-        println!("No fortunes found");
-        return Ok(());
-    }
-
     if let Some(pattern) = cli.pattern {
-        let mut pre_source = String::new();
+        let mut prev_source = None;
 
         for fortune in fortunes {
             if pattern.is_match(&fortune.text) {
-                if pre_source != fortune.source {
+                if prev_source.as_ref().map_or(true, |s| s != &fortune.source) {
                     eprintln!("({})\n%", fortune.source);
+                    prev_source = Some(fortune.source.clone());
                 }
 
                 println!("{}\n%", fortune.text);
-                pre_source = fortune.source.clone();
             }
         }
     } else {
         let fortune = pick_fortune(&fortunes, cli.seed);
-        if let Some(fortune) = fortune {
-            println!("{}", fortune);
-        }
+        println!(
+            "{}",
+            fortune.unwrap_or_else(|| "No fortunes found".to_string())
+        );
     }
 
     Ok(())
